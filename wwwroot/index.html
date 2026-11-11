@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>So sánh giá Tiki và Lazada</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --line: #e2e8f0;
+        --good: #15803d;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f172a;
+          --card: #1e293b;
+          --text: #f1f5f9;
+          --muted: #94a3b8;
+          --line: #334155;
+          --good: #4ade80;
+        }
+      }
+      body {
+        margin: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 24px 16px 48px;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin: 0 0 4px;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      select {
+        margin: 16px 0;
+        padding: 8px 12px;
+        font-size: 1rem;
+        width: 100%;
+        max-width: 520px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--card);
+        color: var(--text);
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .card.best {
+        border-color: var(--good);
+      }
+      .price {
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin-top: 4px;
+      }
+      .badge {
+        color: var(--good);
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-top: 4px;
+      }
+      .chart {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+        height: 380px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>So sánh giá Tiki và Lazada</h1>
+      <p class="muted">
+        Lịch sử giá theo từng lần thu thập. Dữ liệu chỉ phục vụ mục đích học
+        tập.
+      </p>
+      <select id="group" aria-label="Chọn sản phẩm"></select>
+      <div class="cards" id="cards"></div>
+      <div class="chart"><canvas id="chart"></canvas></div>
+      <p class="muted" id="note"></p>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script>
+      const COLORS = { Tiki: "#2563eb", Lazada: "#ea580c" };
+      const money = (v) => new Intl.NumberFormat("vi-VN").format(v) + " ₫";
+      const when = (ms) =>
+        new Date(ms).toLocaleString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      let chart;
+
+      const css = (name) =>
+        getComputedStyle(document.documentElement)
+          .getPropertyValue(name)
+          .trim();
+      Chart.defaults.color = css("--muted");
+      Chart.defaults.borderColor = css("--line");
+
+      function makeCard(source, latest, isBest) {
+        const card = document.createElement("div");
+        card.className = "card" + (isBest ? " best" : "");
+        const name = document.createElement("div");
+        name.className = "muted";
+        name.textContent = source;
+        const price = document.createElement("div");
+        price.className = "price";
+        price.textContent = money(latest);
+        card.append(name, price);
+        if (isBest) {
+          const badge = document.createElement("div");
+          badge.className = "badge";
+          badge.textContent = "Rẻ nhất hiện tại";
+          card.append(badge);
+        }
+        return card;
+      }
+
+      async function show(id) {
+        const data = await (await fetch(`/groups/${id}/compare`)).json();
+
+        document
+          .getElementById("cards")
+          .replaceChildren(
+            ...data.series.map((s) =>
+              makeCard(
+                s.source,
+                s.latest,
+                s.source === data.cheapest && data.series.length > 1,
+              ),
+            ),
+          );
+
+        const datasets = data.series.map((s) => ({
+          label: s.source,
+          data: s.points.map((p) => ({
+            x: new Date(p.collectedAt).getTime(),
+            y: p.price,
+          })),
+          borderColor: COLORS[s.source] || "#64748b",
+          backgroundColor: COLORS[s.source] || "#64748b",
+          tension: 0,
+          pointRadius: 3,
+        }));
+
+        chart?.destroy();
+        chart = new Chart(document.getElementById("chart"), {
+          type: "line",
+          data: { datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                type: "linear",
+                ticks: { callback: (v) => when(v), maxTicksLimit: 6 },
+              },
+              y: { ticks: { callback: (v) => money(v) } },
+            },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  title: (items) => when(items[0].parsed.x),
+                  label: (c) => `${c.dataset.label}: ${money(c.parsed.y)}`,
+                },
+              },
+            },
+          },
+        });
+
+        const flat = data.series.every((s) =>
+          s.points.every((p) => p.price === s.points[0].price),
+        );
+        document.getElementById("note").textContent =
+          flat && data.series.length
+            ? "Giá chưa thay đổi trong thời gian theo dõi."
+            : "";
+      }
+
+      async function init() {
+        const groups = await (await fetch("/groups")).json();
+        const select = document.getElementById("group");
+        groups.forEach((g) => select.add(new Option(g.name, g.id)));
+        select.onchange = () => show(select.value);
+        if (groups.length) show(groups[0].id);
+      }
+
+      init();
+    </script>
+  </body>
+</html>
