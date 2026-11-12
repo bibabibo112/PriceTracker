@@ -113,6 +113,22 @@ Chu kỳ thu thập tự động (phút) trong `appsettings.json`, mặc định
 - Phần đọc giá Lazada phụ thuộc cấu trúc trang nên có thể phải cập nhật khi Lazada thay đổi
 - Có thể thêm: unit test, Docker, cảnh báo khi giá giảm, thêm sàn khác bằng một collector mới
 
+
 ## Ảnh minh họa
 
-<!-- Thêm ảnh chụp màn hình trang biểu đồ và Swagger/Postman vào đây -->
+### Giao diện biểu đồ biến động giá (Chart.js)
+![Biểu đồ biến động giá](docs/images/chart.png)
+
+### Thu thập dữ liệu giá tự động (`POST /collect`)
+![Thu thập giá Postman](docs/images/collect.png)
+
+### Danh sách sản phẩm & giá mới nhất (`GET /products`)
+![Danh sách sản phẩm](docs/images/product.png)
+
+### Lịch sử biến động giá (`GET /products/{id}/price-history`)
+![Lịch sử giá Postman](docs/images/postman-history.png)
+
+---
+
+**Tác giả:** Nguyễn Đắc Minh  
+**Repository:** [https://github.com/bibabibo112/PriceTracker](https://github.com/bibabibo112/PriceTracker)
